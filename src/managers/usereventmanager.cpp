@@ -12,6 +12,7 @@
 #include "usereventmanager.hpp"
 
 #include "environmentmanager.hpp"
+#include "utils/gui2/menupresses.hpp"
 
 extern void AddGamepad(int deviceIndex, int gamepadID);
 extern void RemoveGamepad(int gamepadID);
@@ -146,6 +147,8 @@ void UserEventManager::InputSDLEvent(const SDL_Event& event) {
           EnvironmentManager::GetInstance().GetTime_ms();
       lastKeyTime_ms = keyPressed[event.key.keysym.sym].pressTime_ms;
       keyPressedMutex.unlock();
+      if (IsMenuKey(event.key.keysym.sym))
+        menuPresses.Push({event.key.keysym.sym, 0, 0});
       break;
     case SDL_KEYMAPCHANGED:
       keymapGeneration++;
@@ -156,6 +159,14 @@ void UserEventManager::InputSDLEvent(const SDL_Event& event) {
       keyPressedMutex.unlock();
       break;
     case SDL_MOUSEBUTTONDOWN:
+      if (event.button.button == SDL_BUTTON_LEFT) {
+        SDL_Window* window = SDL_GetWindowFromID(event.button.windowID);
+        int width = 0, height = 0;
+        if (window) SDL_GetWindowSize(window, &width, &height);
+        if (width > 0 && height > 0)
+          menuPresses.Push({SDLK_UNKNOWN, static_cast<float>(event.button.x) / width,
+                           static_cast<float>(event.button.y) / height});
+      }
       mousePressedMutex.lock();
       if (event.button.button >= 0 && event.button.button < 32)
         mousePressed[event.button.button] = true;
@@ -294,6 +305,7 @@ unsigned long UserEventManager::GetLastKeyPressDiff_ms(SDL_Keycode key) {
 }
 
 void UserEventManager::ReleaseAllInputs() {
+  menuPresses.Take();
   {
     std::unique_lock<std::mutex> lock(keyPressedMutex);
     keyPressed.clear();

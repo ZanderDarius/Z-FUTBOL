@@ -1,0 +1,17 @@
+Z FUTBOL
+
+Z FUTBOL is based on League-Soccer. Credit for League-Soccer goes to
+awest813 and the contributors who developed and maintained the game.
+Upstream project: https://github.com/awest813/League-Soccer
+Contributor history: https://github.com/awest813/League-Soccer/graphs/contributors
+
+League-Soccer builds on Gameplay Football, originally created by
+Bastiaan Konings Schuiling (Properly Decent), and incorporates work from
+Google Research Football by the Google Research Football team and its
+contributors.
+Gameplay Football: https://github.com/BazkieBumpercar/GameplayFootball
+Google Research Football: https://github.com/google-research/football
+
+The in-game Credits screen lists individual contributions to the original
+game, including programming, artwork, animation and sound. The upstream
+license is included in LICENSE.

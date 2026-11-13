@@ -9,6 +9,7 @@
 #include "base/log.hpp"
 #include "managers/resourcemanagerpool.hpp"
 #include "matchclock.hpp"
+#include "practicescenario.hpp"
 #include "matchduration.hpp"
 #include "menu/pagefactory.hpp"
 #include "menu/startmatch/loadingmatch.hpp"
@@ -769,6 +770,8 @@ void Match::UpdateLatestMentalImageBallPredictions() {
 }
 
 void Match::ResetSituation(const Vector3& focusPos) {
+  secretShooter = nullptr;
+  manualKeeperTicks = 0;
   camPos.clear();
   SetBallRetainer(nullptr);
   SetGoalScored(false);
@@ -1011,6 +1014,17 @@ void Match::UpdateIngameCamera() {
   radian angleFac =
       1.0f - cameraUserAngleFactor * 0.4f;  // 0.0 == 90 degrees max, 1.0 == sideline view
 
+  if (ManualKeeperFacingShot(0) || ManualKeeperFacingShot(1)) {
+    const int side = teams[manualKeeperTeam]->GetSide();
+    cameraNodePosition = Vector3((pitchHalfW + 4.0f) * side, 0, 2.0f);
+    cameraNodeOrientation.SetAngleAxis(side * 0.5f * pi, Vector3(0, 0, 1));
+    cameraOrientation.SetAngleAxis(0.48f * pi, Vector3(1, 0, 0));
+    cameraFOV = 70.0f;
+    cameraNearCap = 0.2f;
+    cameraFarCap = 220;
+    return;
+  }
+
   // normal cam
 
   int camMethod = 1;  // 1 == wide, 2 == birds-eye, 3 == tele
@@ -1072,16 +1086,18 @@ void Match::UpdateIngameCamera() {
       targetPos = lastGoalScorer->GetPosition();
     }
 
-    radian rot = (float)goalScoredTimer * 0.0005f;
+    const float push = clamp((goalScoredTimer - 1000.0f) / 1800.0f, 0.0f, 1.0f);
+    const float ease = push * push * (3.0f - 2.0f * push);
+    radian rot = (float)goalScoredTimer * 0.00024f;
     cameraOrientation.SetAngleAxis(0.45f * pi, Vector3(1, 0, 0));
     cameraNodeOrientation.SetAngleAxis(rot, Vector3(0, 0, 1));
-    cameraNodePosition = targetPos + Vector3(0, -1, 0).GetRotated2D(rot) * 15.0f + Vector3(0, 0, 3);
-    cameraFOV = 35.0f;
+    cameraNodePosition = targetPos + Vector3(0, -1, 0).GetRotated2D(rot) * (15.0f - 5.0f * ease) + Vector3(0, 0, 3);
+    cameraFOV = 35.0f - 6.0f * ease;
 
     cameraNearCap = 1;
     cameraFarCap = 220;
 
-    if (goalScoredTimer == 6000) {
+    if (goalScoredTimer == 6000 && practice::active == practice::Drill::None) {
       pause = true;
       sig_OnExtendedReplayMoment(this);
     }
@@ -1091,6 +1107,95 @@ void Match::UpdateIngameCamera() {
 // THE SPICE
 
 void Match::Get() {}
+
+void Match::StartPracticeAttempt() {
+  using practice::Drill;
+  const Drill drill = practice::active.load();
+  const auto* scenario = practice::Find(drill);
+  if (!scenario) return;
+  practiceStarted = true;
+  matchData->SetHistorySaved(true);
+  SetMatchPhase(e_MatchPhase_1stHalf);
+  SetAutoUpdateIngameCamera(true);
+  goalScoredTimer = 0;
+  SetGoalScored(false);
+  secretShooter = nullptr;
+  manualKeeperTicks = 0;
+  manualKeeperTeam = drill == Drill::ManualKeeper ? 0 : -1;
+  const int attack = -teams[0]->GetSide();
+  const Vector3 goal(attack * pitchHalfW, 0, 0);
+  Vector3 spot(attack * (pitchHalfW - 18), 2, 0);
+  e_SetPiece piece = e_SetPiece_None;
+  switch (drill) {
+    case Drill::Corner: piece = e_SetPiece_Corner; spot = Vector3(goal.coords[0], -pitchHalfH, 0); break;
+    case Drill::FreeKick: piece = e_SetPiece_FreeKick; spot = Vector3(attack * (pitchHalfW - 23), -5, 0); break;
+    case Drill::Penalty: piece = e_SetPiece_Penalty; spot = goal - Vector3(attack * 11, 0, 0); break;
+    case Drill::ThrowIn: piece = e_SetPiece_ThrowIn; spot = Vector3(attack * 12, -pitchHalfH, 0); break;
+    case Drill::GoalKick: piece = e_SetPiece_GoalKick; spot = Vector3(-attack * (pitchHalfW - 5.5f), 4, 0); break;
+    case Drill::Kickoff: piece = e_SetPiece_KickOff; spot = Vector3(0); break;
+    case Drill::Passing: spot = Vector3(attack * -3, -3, 0); break;
+    case Drill::Defending: spot = Vector3(attack * -16, 4, 0); break;
+    case Drill::Bicycle: spot = Vector3(attack * (pitchHalfW - 11), 0, 0); break;
+    case Drill::Celebration: spot = Vector3(attack * (pitchHalfW - 7), 3, 0); break;
+    case Drill::Chip: spot = Vector3(attack * (pitchHalfW - 14), -3, 0); break;
+    case Drill::Finesse: spot = Vector3(attack * (pitchHalfW - 16), 7, 0); break;
+    case Drill::ManualKeeper: case Drill::CpuKeeper:
+      spot = Vector3(-attack * (pitchHalfW - 19), 2, 0); break;
+    default: break;
+  }
+  referee->ResetForPractice(piece, spot);
+  if (piece == e_SetPiece_None) {
+    // Open play normally inherits positions from the kickoff. Restore a formation
+    // on every retry so nobody from the previous attempt is left in the shooting lane.
+    for (const auto& team : teams) {
+      const int side = team->GetSide();
+      std::vector<Player*> players;
+      team->GetActivePlayers(players);
+      for (auto* p : players) {
+        Vector3 pos = p == team->GetGoalie() ? Vector3(side * (pitchHalfW - 1.4f), 0, 0) :
+            p->GetFormationEntry().position * Vector3(-side * 28, -side * 22, 0);
+        p->ResetPosition(pos, spot);
+      }
+    }
+    const bool keeper = drill == Drill::ManualKeeper || drill == Drill::CpuKeeper;
+    Team* onBall = teams[keeper || drill == Drill::Defending ? 1 : 0].get();
+    Player* attacker = AI_GetClosestPlayer(onBall, spot, false, onBall->GetGoalie());
+    attacker->ResetPosition(spot + Vector3(onBall->GetSide() * 0.3f, 0, 0),
+                            Vector3(-onBall->GetSide() * pitchHalfW, 0, 0));
+    onBall->SelectPlayer(attacker);
+    designatedPossessionPlayer = attacker;
+    Player* human = attacker;
+    if (onBall != teams[0].get()) {
+      human = AI_GetClosestPlayer(teams[0].get(), spot, false, teams[0]->GetGoalie());
+      if (!keeper) human->ResetPosition(spot - Vector3(attack * 5, 1, 0), spot);
+    }
+    teams[0]->SelectPlayer(human);
+    for (auto* gamer : teams[0]->GetHumanGamers()) gamer->SetSelectedPlayerID(human->GetID());
+    Player* lastTouch = attacker;
+    if (keeper) {
+      ball->SetPosition(spot + Vector3(0, 0, 0.7f));
+      ball->SetMomentum(Vector3(-attack * 23, 0, 3));
+    } else if (drill == Drill::Bicycle) {
+      Vector3 delivery = spot + Vector3(attack * 2, -9, 0);
+      Player* passer = AI_GetClosestPlayer(onBall, delivery, false, attacker);
+      passer->ResetPosition(delivery, spot);
+      ball->SetPosition(delivery + Vector3(0, 0, 0.7f));
+      ball->SetMomentum(Vector3(-attack * 2.2f, 10.0f, 6.0f));
+      lastTouch = passer;
+    }
+    // ResetSituation cleared perception. Offside evaluation on the first
+    // recorded touch needs a snapshot of the new formation and delivery.
+    auto snapshot = std::make_shared<MentalImage>(this);
+    snapshot->TakeSnapshot();
+    mentalImages.push_back(snapshot);
+    onBall->SetLastTouchPlayer(lastTouch);
+    if (keeper) OnShotForManualKeeper(attacker);
+    // Collision checks run before the first fresh perception snapshot.
+    lastBodyBallCollisionTime_ms = actualTime_ms;
+  }
+  SpamMessage(scenario->hint, 4500);
+  Log(e_Notice, "Match", "Practice", scenario->name);
+}
 
 void Match::Process() {
   unsigned long time_ms =
@@ -1113,14 +1218,54 @@ void Match::Process() {
     sig_OnGameOver(this);
   }
 
+  auto& input = UserEventManager::GetInstance();
+  if (!pause && practice::active != practice::Drill::None &&
+      ((!practiceStarted && actualTime_ms >= 3000) || input.GetKeyboardState(SDLK_F9))) {
+    input.SetKeyboardState(SDLK_F9, false);
+    StartPracticeAttempt();
+  }
+  const bool secretShotPressed = input.GetKeyboardState(SDLK_v);
+  if (input.GetKeyboardState(SDLK_g)) {
+    input.SetKeyboardState(SDLK_g, false);
+    if (!gameOver && !pause) {
+      for (const auto& team : teams)
+        for (HumanGamer* gamer : team->GetHumanGamers())
+          if (gamer->GetHIDevice()->GetDeviceType() == e_HIDeviceType_Keyboard) {
+            manualKeeperTeam = manualKeeperTeam == team->GetID() ? -1 : team->GetID();
+            manualKeeperTicks = 0;
+            SpamMessage(manualKeeperTeam >= 0 ? "Manual keeper ON - move cursor to ball"
+                                              : "CPU goalkeeper", 1500);
+          }
+    }
+  }
+  if (input.GetKeyboardState(SDLK_y)) {
+    input.SetKeyboardState(SDLK_y, false);
+    if (!pause && !gameOver) {
+      for (const auto& team : teams)
+        for (HumanGamer* gamer : team->GetHumanGamers())
+          if (gamer->GetHIDevice()->GetDeviceType() == e_HIDeviceType_Keyboard) {
+            boostedTeam = boostedTeam == team->GetID() ? -1 : team->GetID();
+
+          }
+    }
+  }
+  if (secretShotPressed)
+    input.SetKeyboardState(SDLK_v, false);
+
   if (!pause) {
+    if (manualKeeperTicks > 0) {
+      ProcessManualKeeper();
+      if (manualKeeperTicks > 0 && ++manualKeeperSlowTick % 4 == 0)
+        return;
+    }
     if (IsInPlay()) {
       CheckBallCollisions();  // todo: should not read geoms during process
     }
 
     // HIJ IS EEN HONDELUUUL
 
-    referee->Process();
+    if (!secretShooter)
+      referee->Process();
 
     // ball
 
@@ -1204,6 +1349,7 @@ void Match::Process() {
 
     // check for goals
 
+    ProcessSecretShot(secretShotPressed);
     bool t1goal = CheckForGoal(teams[0]->GetSide());
     bool t2goal = CheckForGoal(teams[1]->GetSide());
     if (t1goal)
@@ -1235,8 +1381,8 @@ void Match::Process() {
             GetLastTouchTeamID(e_TouchType_Intentional_Nonkicked) == GetLastGoalTeamID())
           ownGoal = false;
 
-        if (!ownGoal) {
-          lastGoalScorer = teams[GetLastGoalTeamID()]->GetLastTouchPlayer();
+        if (secretShooter || !ownGoal) {
+          lastGoalScorer = secretShooter ? secretShooter : teams[GetLastGoalTeamID()]->GetLastTouchPlayer();
           std::string goalWord = Localization::GetInstance().Translate("ingame_goal");
           if (lastGoalScorer) {
             matchData->AddGoalScorer(GetLastGoalTeamID(),
@@ -1259,6 +1405,9 @@ void Match::Process() {
         }
       }
     }
+
+    if (t1goal || t2goal)
+      secretShooter = nullptr;
 
     // average possession side
 
@@ -1718,6 +1867,108 @@ void Match::CaptureReplayFrame(unsigned long replayTime_ms) {
   ballTouchesNetFrame.frameTime_ms = replayTime_ms;
   ballTouchesNetFrame.ballTouchesNet = GetBall()->BallTouchesNet();
   replayBallTouchesNetFrames.push_back(ballTouchesNetFrame);
+}
+
+void Match::ProcessSecretShot(bool pressed) {
+  if (!IsInPlay() || IsInSetPiece() || IsGoalScored() || gameOver) {
+    secretShooter = nullptr;
+    return;
+  }
+  if (pressed && !secretShooter) {
+    for (const auto& team : teams) {
+      for (HumanGamer* gamer : team->GetHumanGamers()) {
+        if (gamer->GetHIDevice()->GetDeviceType() == e_HIDeviceType_Keyboard &&
+            gamer->GetSelectedPlayer()) {
+          secretShooter = gamer->GetSelectedPlayer();
+          secretFlightTicks = 0;
+          secretShotTick = 0;
+          break;
+        }
+      }
+      if (secretShooter)
+        break;
+    }
+  }
+  if (!secretShooter)
+    return;
+
+  SetBallRetainer(nullptr);
+  const Vector3 current = ball->Predict(0);
+  if (secretFlightTicks == 0) {
+    // Lead the striker with a rolling pass so the animation system can find a kick.
+    if (secretShooter->GetCurrentFunctionType() != e_FunctionType_Shot) {
+      Vector3 contact = secretShooter->GetPosition() + secretShooter->GetDirectionVec() * 0.62f
+                        + secretShooter->GetMovement() * 0.10f;
+      contact.coords[2] = 0.11f;
+      Vector3 feed = (contact - current) * 8.0f;
+      feed.NormalizeMax(26.0f);
+      ball->SetMomentum(feed);
+    }
+    return;
+  }
+
+  // Guide velocity along a timed arc, leaving ball position, spin and replay history intact.
+  const float t = clamp(float(++secretShotTick) / secretFlightTicks, 0.0f, 1.0f);
+  Vector3 next = secretShotStart + (secretShotTarget - secretShotStart) * t;
+  next.coords[2] += 4.0f * t * (1.0f - t) * std::min(5.0f, secretFlightTicks * 0.024f);
+  ball->SetMomentum((next - current) * 100.0f);
+}
+
+void Match::OnShotForManualKeeper(Player* shooter) {
+  if (manualKeeperTeam < 0 || !IsInPlay() || shooter->GetTeamID() == manualKeeperTeam ||
+      secretShooter || gameOver)
+    return;
+  const int side = teams[manualKeeperTeam]->GetSide();
+  if (ball->GetMovement().coords[0] * side < 5.0f)
+    return;
+  manualKeeperTicks = 200;
+  manualKeeperSlowTick = 0;
+}
+
+void Match::ProcessManualKeeper() {
+  --manualKeeperTicks;
+  const Vector3 pos = ball->Predict(0);
+  const int side = teams[manualKeeperTeam]->GetSide();
+  if (!IsInPlay() || IsInSetPiece() || IsGoalScored() || GetBallRetainer() ||
+      ball->GetMovement().coords[0] * side < 2.0f) {
+    manualKeeperTicks = 0;
+    return;
+  }
+  // Only a ball in the goalmouth is within reach of the gloves.
+  const float distance = pitchHalfW - pos.coords[0] * side;
+  if (distance < 0.0f || distance > 7.0f || fabs(pos.coords[1]) > goalHalfWidth + 1.0f ||
+      pos.coords[2] > goalHeight + 0.55f)
+    return;
+  SDL_Window* window = SDL_GetMouseFocus();
+  if (!window || window != SDL_GetKeyboardFocus())
+    return;
+  int x, y, width, height;
+  SDL_GetMouseState(&x, &y);
+  SDL_GetWindowSize(window, &width, &height);
+  if (width <= 0 || height <= 0)
+    return;
+  const Vector3 screen = GetProjectedCoord(pos, GetCamera());
+  const float dx = screen.coords[0] * width * 0.01f - x;
+  const float dy = screen.coords[1] * height * 0.01f - y;
+  const float radius = std::max(6.0f, height * 0.016f);
+  Player* keeper = teams[manualKeeperTeam]->GetGoalie();
+  if (keeper && dx * dx + dy * dy <= radius * radius) {
+    ball->Touch(Vector3(-side * 13.0f, pos.coords[1] < 0 ? -9.0f : 9.0f, 4.0f));
+    teams[manualKeeperTeam]->SetLastTouchPlayer(keeper, e_TouchType_Intentional_Nonkicked);
+    manualKeeperTicks = 0;
+    SpamMessage("Save!", 800);
+  }
+}
+
+void Match::LaunchSecretShot(Player* player) {
+  if (!IsPreparingSecretShot(player))
+    return;
+  secretShotStart = ball->Predict(0);
+  const int direction = -player->GetTeam()->GetSide();
+  secretShotTarget = Vector3(direction * (pitchHalfW + 0.75f),
+      secretShotStart.coords[1] >= 0 ? -2.8f : 2.8f, 1.65f);
+  secretFlightTicks = std::max(12, int(secretShotStart.GetDistance(secretShotTarget) / 0.32f));
+  secretShotTick = 0;
 }
 
 bool Match::CheckForGoal(signed int side) {

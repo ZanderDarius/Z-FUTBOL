@@ -7,6 +7,7 @@
 #include "match.hpp"
 #include "officials.hpp"
 #include "player/playerofficial.hpp"
+#include "practicescenario.hpp"
 #include "scene/objectfactory.hpp"
 #include "utils/localization.hpp"
 
@@ -304,6 +305,37 @@ void Referee::PrepareSetPiece(e_SetPiece setPiece) {
   match->GetTeam(1)->GetController()->PrepareSetPiece(setPiece, buffer.teamID);
 
   buffer.taker = match->GetTeam(buffer.teamID)->GetController()->GetPieceTaker();
+  if (practice::active != practice::Drill::None && buffer.taker) {
+    Team* takingTeam = match->GetTeam(buffer.teamID);
+    takingTeam->SelectPlayer(buffer.taker);
+    for (auto* gamer : takingTeam->GetHumanGamers())
+      gamer->SetSelectedPlayerID(buffer.taker->GetID());
+  }
+}
+
+void Referee::ResetForPractice(e_SetPiece piece, const Vector3& spot) {
+  match->StopPlay();
+  match->StopSetPiece();
+  buffer = {};
+  buffer.desiredSetPiece = piece;
+  buffer.restartPos = spot;
+  offsidePlayers.clear();
+  pendingCautions.TakeAtStoppage(false);
+  foul = {};
+  foul.hasBeenProcessed = true;
+  afterSetPieceRelaxTime_ms = 400;
+  if (piece == e_SetPiece_None) {
+    match->ResetSituation(spot);
+    for (int i = 0; i < 2; ++i)
+      match->GetTeam(i)->GetController()->PrepareSetPiece(e_SetPiece_None);
+    match->StartPlay();
+  } else {
+    buffer.active = true;
+    buffer.stopTime = match->GetActualTime_ms();
+    buffer.prepareTime = buffer.stopTime;
+    buffer.startTime = buffer.prepareTime + 700;
+    // Process() prepares the taker during this tick and whistles after the short lead-in.
+  }
 }
 
 void Referee::AlterSetPiecePrepareTime(unsigned long newTime_ms) {

@@ -231,15 +231,22 @@ bool Renderer3DMessage_RenderView::Execute(void* caller) {
   // renderer->SetUniformFloat("postprocess", "brightness",
   // (float)renderer->HDRGetOverallBrightness());
 
-  renderer->SetUniformFloat("postprocess", "contextWidth", (float)view.width);
-  renderer->SetUniformFloat("postprocess", "contextHeight", (float)view.height);
-  renderer->SetUniformFloat("postprocess", "contextX", (float)view.x);
-  renderer->SetUniformFloat("postprocess", "contextY", (float)(height - (view.y + view.height)));
+  // The scene textures keep their render resolution when the window changes size.
+  int drawableWidth, drawableHeight;
+  renderer->GetDrawableSize(drawableWidth, drawableHeight);
+  const int left = view.x * drawableWidth / width;
+  const int right = (view.x + view.width) * drawableWidth / width;
+  const int top = drawableHeight - view.y * drawableHeight / height;
+  const int bottom = drawableHeight - (view.y + view.height) * drawableHeight / height;
+  renderer->SetUniformFloat("postprocess", "contextWidth", (float)(right - left));
+  renderer->SetUniformFloat("postprocess", "contextHeight", (float)(top - bottom));
+  renderer->SetUniformFloat("postprocess", "contextX", (float)left);
+  renderer->SetUniformFloat("postprocess", "contextY", (float)bottom);
   renderer->SetUniformFloat2("postprocess", "cameraClip", depthParamNear, depthParamFar);
   renderer->SetUniformFloat("postprocess", "fogScale",
                             0.8f - NormalizedClamp(buffer.cameraFOV, 20, 100) * 0.6f);
 
-  renderer->SetViewport(view.x, height - (view.y + view.height), view.width, view.height);
+  renderer->SetViewport(left, bottom, right - left, top - bottom);
 
   renderer->SetTextureUnit(2);
   renderer->BindTexture(view.gBuffer_DepthTexID);

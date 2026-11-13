@@ -572,20 +572,14 @@ void Team::UpdateSwitch() {
     }
   }
 
-  // autoswitch on proximity
-
-  /* recently disabled
-    if (match->IsInPlay() && humanGamers.size() > 0) {
-      if (!IsHumanControlled(designatedTeamPossessionPlayer->GetID()) &&
-          designatedTeamPossessionPlayer->GetTimeNeededToGetToBall_ms() < 2000 && // proximity
-          designatedTeamPossessionPlayer->GetTimeNeededToGetToBall_ms() <=
-    this->GetTimeNeededToGetToBall_ms() && // sometimes, the designated team possession player is
-    not the player quickest to ball. don't autoswitch then GetTeamPossessionAmount() > 1.3f)
-    SelectPlayer(designatedTeamPossessionPlayer);
-    }
-  */
-
-  // if (GetID() == 0) printf("teamposs %f\n", GetTeamPossessionAmount());
+  if (!humanGamers.empty() && match->IsInPlay() && !match->IsInSetPiece() &&
+      !HasPossession() && match->GetTeam(1 - GetID())->HasPossession()) {
+    Player* closest = AI_GetClosestPlayer(this, match->GetBall()->Predict(0).Get2D(), false,
+                                          GetGoalie());
+    if (closest && !IsHumanControlled(closest->GetID()))
+      SelectPlayer(closest);
+    return;
+  }
 
   // team player in possession is not human selected
 

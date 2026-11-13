@@ -41,6 +41,7 @@ public:
   void Process();
 
   void PrepareSetPiece(e_SetPiece setPiece);
+  void ResetForPractice(e_SetPiece piece, const Vector3& spot);
 
   const RefereeBuffer& GetBuffer() { return buffer; };
 

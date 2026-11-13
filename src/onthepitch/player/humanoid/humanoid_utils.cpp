@@ -654,5 +654,27 @@ Vector3 GetShotVector(Match* match, Player* player, const Vector3& nextStartPos,
 
   // SetRedDebugPilon(match->GetBall()->Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
 
+  if (currentAnim->originatingCommand.modifier & e_PlayerCommandModifier_PowerShot) {
+    const Vector3 origin = ball->Predict(0);
+    const float goalX = -player->GetTeam()->GetSide() * pitchHalfW;
+    const float farCorner = origin.coords[1] >= 0 ? -2.8f : 2.8f;
+    const Vector3 target(goalX, farCorner, 1.65f);
+    const Vector3 toTarget = (target - origin).Get2D();
+    const float distance = toTarget.GetLength();
+    // V covers 32 metres per second. Give T the same average pace over
+    // shooting distances, accounting for air drag once at foot contact.
+    const float drag = 0.015f;
+    const float range = clamp(distance, 3.0f, 48.0f);
+    const float flightTime = range / 32.0f;
+    const float horizontalSpeed = std::expm1(drag * range) / (drag * flightTime);
+    const float rise = (target.coords[2] - origin.coords[2]) / flightTime;
+    const float lift = clamp(rise + 4.905f * flightTime + 1.2f, 4.0f, 15.0f);
+    const Vector3 aim = (toTarget.GetNormalized() * 0.65f +
+        currentAnim->originatingCommand.touchInfo.desiredDirection.Get2D() * 0.35f).GetNormalized();
+    const float error = random(-1.0f, 1.0f) * (0.025f + difficultyFactor * 0.07f);
+    shot = aim.GetRotated2D(error) * horizontalSpeed;
+    shot.coords[2] = lift + random(-0.9f, 0.9f);
+    zRot *= 0.35f;
+  }
   return shot;
 }

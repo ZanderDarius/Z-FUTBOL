@@ -13,8 +13,84 @@
 
 #include "managers/environmentmanager.hpp"
 #include "managers/usereventmanager.hpp"
+#include "menupresses.hpp"
+#include "widgets/button.hpp"
+#include "widgets/iconselector.hpp"
+#include "widgets/slider.hpp"
 
 namespace blunted {
+
+namespace {
+Vector3 MenuDirection(SDL_Keycode key) {
+  if (key == SDLK_LEFT) return Vector3(-1, 0, 0);
+  if (key == SDLK_RIGHT) return Vector3(1, 0, 0);
+  if (key == SDLK_UP) return Vector3(0, -1, 0);
+  if (key == SDLK_DOWN) return Vector3(0, 1, 0);
+  return Vector3(0);
+}
+
+void DispatchMenuKey(Gui2WindowManager* manager, SDL_Keycode key, bool keyboardEnabled) {
+  Gui2View* focus = manager->GetFocus();
+  KeyboardEvent press;
+  press.SetKeyOnce(key);
+  press.SetKeyRepeated(key);
+  press.SetKeyContinuous(key);
+  focus->ProcessEvent(&press);
+  if (!keyboardEnabled || manager->GetFocus() != focus) return;
+  WindowingEvent action;
+  if (key == SDLK_ESCAPE) action.SetEscape();
+  else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) action.SetActivate();
+  else action.SetDirection(MenuDirection(key));
+  focus->ProcessEvent(&action);
+}
+
+Gui2View* FindMouseControl(Gui2WindowManager* manager, Gui2View* view, int x, int y,
+                           float& horizontalFraction) {
+  if (!view->IsVisible()) return nullptr;
+  // Controls own their decorative captions and images. Hit the whole control.
+  if (dynamic_cast<Gui2Button*>(view) || dynamic_cast<Gui2IconSelector*>(view) ||
+      dynamic_cast<Gui2Slider*>(view)) {
+    float left, top, width, height;
+    view->GetDerivedPosition(left, top);
+    view->GetSize(width, height);
+    int px, py, pw, ph;
+    manager->GetCoordinates(left, top, width, height, px, py, pw, ph);
+    if (x >= px && x < px + pw && y >= py && y < py + ph) {
+      horizontalFraction = static_cast<float>(x - px) / pw;
+      return view;
+    }
+    return nullptr;
+  }
+  const auto children = view->GetChildren();
+  for (auto it = children.rbegin(); it != children.rend(); ++it)
+    if (auto* hit = FindMouseControl(manager, *it, x, y, horizontalFraction)) return hit;
+  return nullptr;
+}
+
+void DispatchMenuClick(Gui2WindowManager* manager, int x, int y) {
+  Gui2View* page = manager->GetFocus();
+  while (page && !dynamic_cast<Gui2Page*>(page)) page = page->GetParent();
+  if (!page) return;
+  float fraction = 0;
+  Gui2View* control = FindMouseControl(manager, page, x, y, fraction);
+  if (!control || !control->IsSelectable()) return;
+  control->SetFocus();
+  if (auto* slider = dynamic_cast<Gui2Slider*>(control)) {
+    float width, height;
+    slider->GetSize(width, height);
+    const float previous = slider->GetValue();
+    slider->SetValue((fraction * width - 0.8f) / std::max(0.1f, width - 1.6f));
+    if (slider->GetValue() != previous) slider->sig_OnChange(slider);
+    return;
+  }
+  WindowingEvent action;
+  if (dynamic_cast<Gui2IconSelector*>(control) && (fraction < 0.35f || fraction > 0.65f))
+    action.SetDirection(Vector3(fraction < 0.35f ? -1 : 1, 0, 0));
+  else
+    action.SetActivate();
+  control->ProcessEvent(&action);
+}
+}  // namespace
 
 Gui2Task::Gui2Task(std::shared_ptr<Scene2D> scene2D, float aspectRatio, float margin)
     : scene2D(scene2D) {
@@ -60,6 +136,20 @@ void Gui2Task::ProcessEvents() {
   // todo: stop making objects every process(); this is terribly inefficient. find out if they are
   // needed in the first place.
 
+  auto presses = menuPresses.Take();
+  for (const auto& press : presses) {
+    if (!windowManager->GetFocus()) break;
+    if (press.key == SDLK_UNKNOWN) {
+      int width, height, bpp;
+      scene2D->GetContextSize(width, height, bpp);
+      DispatchMenuClick(windowManager, static_cast<int>(press.windowX * width),
+                        static_cast<int>(press.windowY * height));
+    } else {
+      DispatchMenuKey(windowManager, press.key, keyboard);
+      keyRepeat.erase(press.key);
+      keyRepeat[press.key].Update(true, EnvironmentManager::GetInstance().GetTime_ms());
+    }
+  }
   if (!windowManager->GetFocus())
     return;
   Gui2View* currentFocus = windowManager->GetFocus();
@@ -88,22 +178,15 @@ void Gui2Task::ProcessEvents() {
     needsKeyboardEvent = true;
 
     // only when pressed first time
-    if (prevKeyState.count(pressedKey) == 0) {
+    if (!IsMenuKey(pressedKey) && prevKeyState.count(pressedKey) == 0) {
       event->SetKeyOnce(pressedKey);
-
-      if (keyboard) {
-        if (pressedKey == SDLK_RETURN) {
-          wEvent->SetActivate();
-          needsWindowingEvent = true;
-        } else if (pressedKey == SDLK_ESCAPE) {
-          wEvent->SetEscape();
-          needsWindowingEvent = true;
-        }
-      }
     }
 
     // when pressed first time, then at a steady rate while held
-    if (keyRepeat[pressedKey].Update(true, now_ms)) {
+    // Discrete menu presses were delivered above. A newly held menu key
+    // can arrive after the queue snapshot and will be dispatched next tick.
+    if ((!IsMenuKey(pressedKey) || keyRepeat.count(pressedKey)) &&
+        keyRepeat[pressedKey].Update(true, now_ms)) {
       event->SetKeyRepeated(pressedKey);
 
       if (keyboard) {

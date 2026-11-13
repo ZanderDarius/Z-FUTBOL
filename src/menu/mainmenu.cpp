@@ -1,4 +1,5 @@
 #include "mainmenu.hpp"
+#include "gametitle.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -249,7 +250,7 @@ MainMenuPage::MainMenuPage(Gui2WindowManager* windowManager, const Gui2PageData&
     AddMainMenuCaption(windowManager, infoPanel, "caption_mm_savedesc", 2, 22,
                        TR("mainmenu_resume_hint"));
   } else {
-    AddMainMenuCaption(windowManager, infoPanel, "caption_mm_welcome", 2, 3, "League Soccer");
+    AddMainMenuCaption(windowManager, infoPanel, "caption_mm_welcome", 2, 3, kGameTitle);
     AddMainMenuCaption(windowManager, infoPanel, "caption_mm_tagline_1", 6, 2.2f,
                        TR("mainmenu_tagline_1"));
     AddMainMenuCaption(windowManager, infoPanel, "caption_mm_tagline_2", 9, 2.2f,

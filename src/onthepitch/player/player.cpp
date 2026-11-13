@@ -365,8 +365,14 @@ void Player::Process() {
     Vector3 posBefore = CastHumanoid()->GetPosition();
 
     CastHumanoid()->Process();
-
     Vector3 posAfter = CastHumanoid()->GetPosition();
+    if (match->IsInPlay() && !match->IsInSetPiece() && match->HasSpeedBoost(team->GetID()) &&
+        GetCurrentFunctionType() == e_FunctionType_Movement) {
+      Vector3 stride = (posAfter - posBefore).Get2D() * 0.35f;
+      stride.NormalizeMax(0.035f);
+      OffsetPosition(stride);
+      posAfter = GetPosition();
+    }
 
     float distance = (posAfter - posBefore).GetLength();
     const float fatigueWorkload = GameplayTuning::GetFatigueWorkloadFactor(

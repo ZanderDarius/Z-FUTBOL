@@ -10,6 +10,7 @@
 // limitations under the License.
 
 #include "humanoid.hpp"
+#include "../bicyclekick.hpp"
 
 #include <cmath>
 
@@ -689,7 +690,13 @@ void Humanoid::Process() {
                           currentAnim->frameNum, spatialState, decayingPositionOffset, xRot, yRot,
                           zRot, currentAnim->originatingCommand.touchInfo.autoDirectionBias);
 
-        touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
+        const bool powerShot =
+            (currentAnim->originatingCommand.modifier & e_PlayerCommandModifier_PowerShot) != 0;
+        const float contactLoss = powerShot ? bumpyRideBias * 0.15f : bumpyRideBias;
+        touchVec = touchVec * (1.0f - contactLoss) + currentBallVec * contactLoss;
+        if (powerShot && Verbose())
+          printf("T kick: horizontal %.2f, vertical %.2f m/s\n",
+                 touchVec.Get2D().GetLength(), touchVec.coords[2]);
         if (player->GetDebug() && bumpyRideBias > 0.01f)
           printf("bumpyridebias (shot): %f\n", bumpyRideBias);
 
@@ -701,6 +708,8 @@ void Humanoid::Process() {
         team->SetLastTouchPlayer(
             CastPlayer(),
             GetTouchTypeForBodyPart(currentAnim->anim->GetVariable("touch_bodypart")));
+        match->OnShotForManualKeeper(CastPlayer());
+        match->LaunchSecretShot(CastPlayer());
         match->GetMatchData()->AddShot(team->GetID());
         match->AddExcitementBoost(0.35f, 2000);
 
@@ -1670,6 +1679,11 @@ bool Humanoid::SelectAnim(const PlayerCommand& command, e_InterruptAnim localInt
 
   DataSet dataSet;
   anims->CrudeSelection(dataSet, query);
+  if (command.modifier & bicycleKickModifier)
+    dataSet.erase(std::remove_if(dataSet.begin(), dataSet.end(), [this](int index) {
+      return anims->GetAnim(index)->GetName().find("bicycle") == std::string::npos;
+    }), dataSet.end());
+
   // if (command.desiredFunctionType == e_FunctionType_Special) printf("size: %i\n",
   // dataSet.size());
   if (dataSet.size() == 0) {

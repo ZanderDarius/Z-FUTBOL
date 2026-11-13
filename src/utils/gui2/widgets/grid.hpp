@@ -19,7 +19,6 @@ public:
            float y_percent, float width_percent, float height_percent);
   virtual ~Gui2Grid();
 
-  virtual void Process();
 
   // Coordinates are (row, column): increase row to stack controls vertically.
   virtual void AddView(Gui2View* view, int row = -1, int col = 0);
@@ -78,8 +77,6 @@ protected:
   float margin_top_percent;
   float margin_bottom_percent;
 
-  int switchDelay_ms;
-  int minSwitchDelay_ms;
 
   bool quickScroll;  // left/right == pageup/pagedown (if 1 column)
   bool rowWrap;

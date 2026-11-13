@@ -79,6 +79,15 @@ Uint32 GetPitchDiffuseColor(SDL_Surface* pitchSurf, float xCoord, float yCoord) 
   g += ((perlinNoiseG * perlinNoiseMultiplier) + (randomNoise * randomNoiseMultiplier)) * 40.0f;
   b += ((perlinNoiseB * perlinNoiseMultiplier) + (randomNoise * randomNoiseMultiplier)) * 40.0f;
 
+  // Alternate longitudinal mowing passes, with lighter wear in each goalmouth.
+  float stripe = std::tanh(4.0f * std::sin(xCoord * pi / 5.5f));
+  float goalDistance = pitchHalfW - fabs(xCoord);
+  float wear = clamp(1.0f - fabs(goalDistance) / 5.5f - yCoord * yCoord / 40.0f
+                     + perlinNoise * 0.5f, 0.0f, 1.0f);
+  r = r * (0.90f + 0.055f * stripe) + wear * 13.0f;
+  g *= 1.06f + 0.065f * stripe - 0.08f * wear;
+  b *= 1.04f + 0.045f * stripe;
+
   // fake ambient occlusion
   Vector3 lightPos = Vector3(0, 0, 0);
   float darkness =

@@ -170,12 +170,14 @@ ControllerSelectPage::ControllerSelectPage(Gui2WindowManager* windowManager,
   ctrlFrame->AddView(hintKbd);
   hintKbd->Show();
 
-  Gui2Button* backButton =
-      AddControllerSelectBackButton(this, windowManager, "button_controllerselect_back", 88.0f);
-  if (!MenuSmokeAutoQuickMatchEnabled()) {
-    // Keep focus on the page for side selection; Back remains clickable.
-    (void)backButton;
+  if (!inGame) {
+    auto* confirm = new Gui2Button(windowManager, "button_controllerselect_confirm",
+                                   27, 82, 24, 4, TR("action_confirm"));
+    confirm->sig_OnClick.connect([this](...) { ConfirmSelection(); });
+    AddView(confirm);
+    confirm->Show();
   }
+  AddControllerSelectBackButton(this, windowManager, "button_controllerselect_back", 88.0f);
 
   this->Show();
 }

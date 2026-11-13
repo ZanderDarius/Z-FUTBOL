@@ -334,7 +334,7 @@ void ElizaController::RequestCommand(PlayerCommandQueue& commandQueue) {
 
     // if (boundForGoal && hasUniquePossession) printf("has unique possession, so no deflect anims
     // (poss: %f)\n", possessionAmount);
-    if (!hasUniquePossession || possessionAmount < 3.4f) {
+    if (!match->ManualKeeperFacingShot(team->GetID()) && (!hasUniquePossession || possessionAmount < 3.4f)) {
       bool onlyPickupAnims = false;
       if (!boundForGoal && possessionAmount > 1.3f)
         onlyPickupAnims = true;

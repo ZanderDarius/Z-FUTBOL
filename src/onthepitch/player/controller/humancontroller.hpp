@@ -41,6 +41,7 @@ protected:
   // once this is set and the button stays pressed, it stays the same
   // 0: undefined, 1: off-the-ball button active, 2: on-the-ball button active/action queued
   int actionMode;
+  bool powerShotQueued = false;
 
   e_ButtonFunction actionButton;
   int actionBufferTime_ms;

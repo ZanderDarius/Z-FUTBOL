@@ -82,7 +82,10 @@ MatchOptionsPage::MatchOptionsPage(Gui2WindowManager* windowManager, const Gui2P
   grid->AddView(difficultySlider, 0, 0);
   grid->AddView(matchDurationSlider, 1, 0);
   grid->AddView(buttonStart, 2, 0);
-  grid->AddView(buttonBack, 3, 0);
+  Gui2Button* camera = new Gui2Button(windowManager, "matchoptions_camera", 0, 0, 46, 3.5, TR("camera_title"));
+  camera->sig_OnClick.connect([this](...) { CreatePage(e_PageID_Camera); });
+  grid->AddView(camera, 3, 0);
+  grid->AddView(buttonBack, 4, 0);
   grid->UpdateLayout(0.5);
 
   frame->AddView(grid);

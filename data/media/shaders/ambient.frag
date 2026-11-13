@@ -126,12 +126,11 @@ void main(void) {
 
   vec3 base = texture2D(map_albedo, texCoord).xyz;
 
-  float brightness = 0.15f;//0.25f;
-
-  // blueish tint + brightness
-  vec3 baseDesaturated = vec3((base.r + base.g + base.b) / 3);
-  base = baseDesaturated * 0.7 + base * 0.3;
-  base *= vec3(0.9f, 1.0f, 1.2f) * brightness;
+  vec3 normal = texture(map_normal, texCoord).xyz;
+  // Upward surfaces see the sky. Downward surfaces pick up softer turf bounce.
+  vec3 fill = mix(vec3(0.105, 0.140, 0.093), vec3(0.175, 0.202, 0.245),
+                  clamp(normal.z * 0.5 + 0.5, 0.0, 1.0));
+  base *= fill;
 
   // screen space ambient occlusion
   // normal-oriented hemisphere method, (c) john chapman
@@ -140,7 +139,7 @@ void main(void) {
   vec2 noiseScale = vec2(contextWidth / 4.0f, contextHeight / 4.0f);
   float SSAO_radius = ssaoRadius;
 
-  vec3 normal = texture2D(map_normal, texCoord).xyz;
+
   float SSAO = 0.0;
 
   vec3 viewPosition = vec3(viewMatrix * vec4(worldPosition, 1.0f));

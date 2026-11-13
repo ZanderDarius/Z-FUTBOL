@@ -124,17 +124,14 @@ void main(void) {
     poisson[14] = vec2( 0.19984126, 0.78641367 );
     poisson[15] = vec2( 0.14383161, -0.14100790 );
 
-    // pseudo-random rotation
-    float random = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-    float s = sin(random * 6.2831853);
-    float c = cos(random * 6.2831853);
-    mat2 rot = mat2(c, -s, s, c);
-
-    float offset = -0.0002f;
-    vec4 projectedFrag = lightViewProjectionMatrix * vec4(worldPosition, 1.0f);
-    for (int i = 0; i < poisson_size; i++) {
-      vec2 rotatedOffset = rot * poisson[i];
-      float lightOccluderDist = textureProj(map_shadow, projectedFrag + (vec4(rotatedOffset, 0, 0) / 1200.0f) + vec4(0, 0, offset, 0));
+    // Anchor the shadow filter to the light projection to avoid crawling edges on camera pans.
+    vec4 projectedFrag = lightViewProjectionMatrix * vec4(worldPosition, 1.0);
+    vec3 shadowUV = projectedFrag.xyz / projectedFrag.w;
+    vec2 radius = 1.45 / vec2(textureSize(map_shadow, 0));
+    float bias = mix(0.00045, 0.00012, max(0.0, dot(normal, lightDir)));
+    for (int i = 0; i < poisson_size; ++i) {
+      float lightOccluderDist = texture(map_shadow, vec3(shadowUV.xy + poisson[i] * radius,
+                                                         shadowUV.z - bias));
       shaded -= (1.0f - lightOccluderDist) * (1.0f / float(poisson_size));
     }
 

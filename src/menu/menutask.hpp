@@ -40,7 +40,7 @@ struct QueuedFixture {
   MatchData* matchData;
 };
 
-void SetActiveController(int side, bool keyboard);
+void SetActiveController(int side);
 
 class MenuTask : public Gui2Task {
 public:

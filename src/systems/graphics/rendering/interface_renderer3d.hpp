@@ -239,6 +239,7 @@ public:
   virtual void PushAttribute(int attr) = 0;
   virtual void PopAttribute() = 0;
   virtual void SetViewport(int x, int y, int width, int height) = 0;
+  virtual void GetDrawableSize(int& width, int& height) = 0;
   virtual void GetContextSize(int& width, int& height, int& bpp) = 0;
   virtual void SetPolygonOffset(float scale, float bias) = 0;
 

@@ -155,6 +155,15 @@ public:
     goalScored = onOff;
   }
   bool IsGoalScored() const { return goalScored; }
+  bool HasSpeedBoost(int teamID) const { return boostedTeam == teamID; }
+  bool IsPreparingSecretShot(const PlayerBase* player) const {
+    return secretShooter && secretShooter == player && secretFlightTicks == 0;
+  }
+  void LaunchSecretShot(Player* player);
+  void OnShotForManualKeeper(Player* shooter);
+  bool ManualKeeperFacingShot(int teamID) const {
+    return manualKeeperTeam == teamID && manualKeeperTicks > 0;
+  }
   int GetLastGoalTeamID() const { return lastGoalTeamID; }
   void SetLastTouchTeamID(int id, e_TouchType touchType = e_TouchType_Intentional_Kicked) {
     lastTouchTeamIDs[touchType] = id;
@@ -359,6 +368,19 @@ protected:
   unsigned long fetchedbuf_matchTime_ms;
   unsigned long fetchedbuf_actualTime_ms;
   unsigned long goalScoredTimer;
+  void ProcessSecretShot(bool pressed);
+  Player* secretShooter = nullptr;
+  Vector3 secretShotStart;
+  int secretShotTick = 0;
+  int secretFlightTicks = 0;
+  int boostedTeam = -1;
+  int manualKeeperTeam = -1;
+  bool practiceStarted = false;
+  void StartPracticeAttempt();
+  int manualKeeperTicks = 0;
+  int manualKeeperSlowTick = 0;
+  void ProcessManualKeeper();
+  Vector3 secretShotTarget;
 
   bool pause;
   e_MatchPhase matchPhase;  // 0 - first half; 1 - second half; 2 - 1st extra time; 3 - 2nd extra

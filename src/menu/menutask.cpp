@@ -4,6 +4,7 @@
 
 #include "../main.hpp"
 #include "../onthepitch/match.hpp"
+#include "../onthepitch/practicescenario.hpp"
 #include "career/career_database.hpp"
 #include "career/career_navigation.hpp"
 #include "data/careerdata.hpp"
@@ -22,8 +23,7 @@
 
 using namespace blunted;
 
-void SetActiveController(int side, bool keyboard) {
-  bool keyboardActive = true;
+void SetActiveController(int side) {
   const std::vector<SideSelection> sides = GetMenuTask()->GetControllerSetup();
   const std::vector<IHIDevice*>& controllers = GetControllers();
   int menuControllerID = -1;
@@ -33,7 +33,6 @@ void SetActiveController(int side, bool keyboard) {
       if (controllerID >= 0 && controllerID < static_cast<int>(controllers.size()) &&
           controllers.at(controllerID)->GetDeviceType() == e_HIDeviceType_Gamepad) {
         menuControllerID = static_cast<HIDGamepad*>(controllers.at(controllerID))->GetGamepadID();
-        keyboardActive = false;
       }
       break;
     }
@@ -42,15 +41,7 @@ void SetActiveController(int side, bool keyboard) {
   }
 
   GetMenuTask()->SetActiveJoystickID(menuControllerID);
-  if (keyboard) {
-    if (keyboardActive) {
-      GetMenuTask()->EnableKeyboard();
-    } else {
-      GetMenuTask()->DisableKeyboard();
-    }
-  } else {
-    GetMenuTask()->EnableKeyboard();
-  }
+  GetMenuTask()->EnableKeyboard();
 }
 
 MenuTask::MenuTask(float aspectRatio, float margin, TTF_Font* defaultFont,
@@ -173,7 +164,14 @@ void MenuTask::ProcessPhase() {
 
     menuBackground->Show();
     Properties properties;
-    if (GetConfiguration()->GetBool("league_resume_hub", false)) {
+    if (practice::active.exchange(practice::Drill::None) != practice::Drill::None) {
+      // Loading a match clears the path. Recreate the parents for Back/Esc.
+      auto* path = windowManager->GetPagePath();
+      path->Push({e_PageID_MainMenu, std::make_shared<Properties>(), nullptr});
+      path->Push({e_PageID_Settings, std::make_shared<Properties>(), nullptr});
+      properties.SetBool("practiceList", true);
+      windowManager->GetPageFactory()->CreatePage(e_PageID_Settings, properties, 0);
+    } else if (GetConfiguration()->GetBool("league_resume_hub", false)) {
       GetConfiguration()->SetBool("league_resume_hub", false);
       windowManager->GetPageFactory()->CreatePage((int)e_PageID_League_Matchday, properties, 0);
     } else if (GetConfiguration()->GetBool("career_resume_hub", false)) {

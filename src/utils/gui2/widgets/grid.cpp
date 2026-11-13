@@ -17,8 +17,6 @@ Gui2Grid::Gui2Grid(Gui2WindowManager* windowManager, const std::string& name, fl
   selectedRow = 0;
   selectedCol = 0;
 
-  minSwitchDelay_ms = 180;
-  switchDelay_ms = minSwitchDelay_ms;
 
   offsetRows = 0;
   maxVisibleRows = 10000;
@@ -41,13 +39,6 @@ Gui2Grid::Gui2Grid(Gui2WindowManager* windowManager, const std::string& name, fl
 }
 
 Gui2Grid::~Gui2Grid() {}
-
-void Gui2Grid::Process() {
-  if (switchDelay_ms < minSwitchDelay_ms)
-    switchDelay_ms += windowManager->GetTimeStep_ms();
-
-  Gui2View::Process();
-}
 
 void Gui2Grid::AddView(Gui2View* view, int row, int col) {
   Gui2View::AddView(view);
@@ -245,7 +236,8 @@ void Gui2Grid::ProcessWindowingEvent(WindowingEvent* event) {
   bool movedOutOfGrid =
       false;  // maybe we need to ignore this event so parent can receive it instead
 
-  if ((xoffset != 0 || yoffset != 0) && switchDelay_ms >= minSwitchDelay_ms && IsSelectable()) {
+  // Gui2Task debounces held directions. Each dispatched press should move focus.
+  if ((xoffset != 0 || yoffset != 0) && IsSelectable()) {
     movedOutOfGrid = false;
 
     int provisionalSelectedRow = selectedRow;
@@ -307,7 +299,6 @@ void Gui2Grid::ProcessWindowingEvent(WindowingEvent* event) {
         provisionalTarget->SetFocus();
       selectedRow = provisionalSelectedRow;
       selectedCol = provisionalSelectedCol;
-      switchDelay_ms = 0;
     }
 
     UpdateLayout(margin_left_percent, margin_right_percent, margin_top_percent,
@@ -317,12 +308,10 @@ void Gui2Grid::ProcessWindowingEvent(WindowingEvent* event) {
 
   if (movedOutOfGrid == true) {
     event->Ignore();
-    switchDelay_ms = 0;
   }
 }
 
 void Gui2Grid::OnGainFocus() {
-  switchDelay_ms = 0;
 
   if (IsSelectable()) {
     for (unsigned int i = 0; i < container.size(); i++) {

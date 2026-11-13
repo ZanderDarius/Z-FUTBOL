@@ -81,26 +81,21 @@ void main(void) {
   }
 
 
-  // SSAO blur
-
-  int SSAO_blurSize = 4;
-
-  float SSAO = 0.0f; // texture2D(map_modifier, texCoord).g;
-
-  vec2 texelSize = 1.0f / vec2(textureSize(map_modifier, 0));
-  vec2 hlim = vec2(float(-SSAO_blurSize) * 0.5f + 0.5f);
-  for (int x = 0; x < SSAO_blurSize; ++x) {
-    for (int y = 0; y < SSAO_blurSize; ++y) {
-      vec2 offset = (hlim + vec2(float(x), float(y))) * texelSize;
-      SSAO += texture(map_modifier, texCoord + offset).g;
+  // Depth-aware contact shadows keep the dark turf from bleeding onto white kits.
+  float centerDepth = texture(map_depth, texCoord).r;
+  vec2 texelSize = 1.0 / vec2(textureSize(map_modifier, 0));
+  float total = 0.0;
+  float SSAO = 0.0;
+  for (int x = -1; x <= 1; ++x) {
+    for (int y = -1; y <= 1; ++y) {
+      vec2 uv = texCoord + vec2(x,y) * texelSize;
+      float weight = 1.0 / (1.0 + 5000.0 * abs(texture(map_depth, uv).r - centerDepth));
+      SSAO += texture(map_modifier, uv).g * weight;
+      total += weight;
     }
   }
-  SSAO = SSAO / float(SSAO_blurSize * SSAO_blurSize);
-  //SSAO = clamp(SSAO * 3.0f - 2.0f, 0.0f, 1.0f);
-
-  //vec3 fragColor = vec3(SSAO);
-  vec3 fragColor = base * SSAO;
-
+  SSAO /= total;
+  vec3 fragColor = base * mix(0.20, 1.0, SSAO);
 
   // fog
 
@@ -119,17 +114,17 @@ void main(void) {
   fragColor = fragColor * (1.0f - fogFactor) + fogColor * fogFactor;
   if (depth > 0.999f) fragColor = fogColor; // fill 'background'/sky
 
-  float brightness = 1.05f; // slightly brighter for better visibility
-  float contrastBias = 0.30f; // punchy PES 5/6 feel, slightly softer
-  float saturation = 1.25f * (0.4f + SSAO * 0.6f); // vibrant broadcast saturation
-
-  fragColor = ContrastSaturationBrightness(fragColor, brightness, 1.0f, saturation);
-  fragColor = AlternateContrast(fragColor, contrastBias);
+  // Neutral midtones, warm sun and a soft highlight roll-off on bright kits.
+  float luma = dot(fragColor, vec3(0.2126, 0.7152, 0.0722));
+  fragColor = mix(vec3(luma), fragColor, 1.12);
+  fragColor *= mix(vec3(0.95,1.00,1.07), vec3(1.06,1.02,0.97), smoothstep(0.03,0.85,luma));
+  fragColor = max(fragColor, vec3(0.0));
+  fragColor = fragColor * 1.12 / (1.0 + 0.13 * fragColor);
   
   // Gentle broadcast vignette: keep touchlines and corner play readable.
   vec2 uv = texCoord * 2.0 - 1.0;
   float distSq = dot(uv, uv);
-  float vignette = max(0.0, 1.0 - distSq * 0.06);
+  float vignette = max(0.0, 1.0 - distSq * 0.025);
   fragColor *= vignette;
   
   // Subtle film grain (noise based on coordinates)

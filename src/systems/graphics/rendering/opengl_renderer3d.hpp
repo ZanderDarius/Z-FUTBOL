@@ -118,6 +118,7 @@ public:
   virtual void PushAttribute(int attr);
   virtual void PopAttribute();
   virtual void SetViewport(int x, int y, int width, int height);
+  void GetDrawableSize(int& width, int& height) override;
   virtual void GetContextSize(int& width, int& height, int& bpp);
   virtual void SetPolygonOffset(float scale, float bias);
 

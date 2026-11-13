@@ -1,6 +1,9 @@
 #include "humancontroller.hpp"
+#include "../bicyclekick.hpp"
 
 #include <algorithm>
+
+#include "managers/usereventmanager.hpp"
 
 #include "../../../main.hpp"
 #include "../../AIsupport/AIfunctions.hpp"
@@ -32,6 +35,23 @@ void HumanController::RequestCommand(PlayerCommandQueue& commandQueue) {
   float rawInputVelocityFloat = 0;
   _GetHidInput(rawInputDirection, rawInputVelocityFloat);
   _SetInput(rawInputDirection, rawInputVelocityFloat);
+
+  if (hid->GetDeviceType() == e_HIDeviceType_Keyboard &&
+      UserEventManager::GetInstance().GetKeyboardState(SDLK_b)) {
+    UserEventManager::GetInstance().SetKeyboardState(SDLK_b, false);
+    const Vector3 arrival = match->GetBall()->Predict(250);
+    if (match->IsInPlay() && !match->IsInSetPiece() && arrival.coords[2] > 0.65f &&
+        arrival.Get2D().GetDistance(player->GetPosition().Get2D()) < 4.0f) {
+      PlayerCommand kick;
+      kick.desiredFunctionType = e_FunctionType_Shot;
+      kick.modifier |= bicycleKickModifier;
+      kick.touchInfo.inputDirection = inputDirection;
+      kick.touchInfo.autoDirectionBias = 1.0f;
+      kick.touchInfo.desiredDirection = AI_GetShotDirection(CastPlayer(), inputDirection, 1.0f);
+      kick.touchInfo.desiredPower = 0.92f;
+      commandQueue.push_back(kick);
+    }
+  }
 
   // clear buffer?
 
@@ -102,13 +122,17 @@ void HumanController::RequestCommand(PlayerCommandQueue& commandQueue) {
 
   // execute buffer?
 
+  if (powerShotQueued && !CastPlayer()->HasPossession()) {
+    actionMode = 0;
+    gauge_ms = 0;
+    powerShotQueued = false;
+  }
   if (actionMode == 2) {
-    if (!hid->GetButton(actionButton) ||
-        (hid->GetButton(actionButton) &&
-         gauge_ms >
-             500) ||  // allow anim to kick in before queue is complete (before button is released),
-                      // it will usually touch ball after the remaining time anyway, so we still
-                      // have time to add more power, yet still respond as fast as possible
+    const bool actionButtonHeld = hid->GetButton(actionButton);
+    const unsigned int autoCommitGauge_ms =
+        actionButton == e_ButtonFunction_Shot ? 1000 : 500;
+    if (!actionButtonHeld ||
+        (actionButtonHeld && gauge_ms >= autoCommitGauge_ms) ||
         (!CastPlayer()->HasPossession() && !match->IsInSetPiece() && actionBufferTime_ms > 0)) {
       int baseTime_ms =
           60;  // substract a little because we can't really press a button shorter than this
@@ -218,7 +242,9 @@ void HumanController::RequestCommand(PlayerCommandQueue& commandQueue) {
             inputVelocityFloat;  // this is so we can use sprint/dribble buttons as shot modifiers
 
         // Classic PES 5/6 Chip Shot: L1 + Shoot
-        if (hid->GetButton(e_ButtonFunction_Switch)) {
+        if (powerShotQueued) {
+          command.modifier |= e_PlayerCommandModifier_PowerShot;
+        } else if (hid->GetButton(e_ButtonFunction_Switch)) {
           command.modifier |= e_PlayerCommandModifier_Chip;
         } else if (hid->GetButton(e_ButtonFunction_Dribble)) {
           // Controlled shot: chip takes precedence when both modifiers are held.
@@ -420,6 +446,15 @@ void HumanController::Process() {
 
   // action?
 
+  auto& events = UserEventManager::GetInstance();
+  const bool powerShotPressed = hid->GetDeviceType() == e_HIDeviceType_Keyboard &&
+                                events.GetKeyboardState(SDLK_t);
+  if (powerShotPressed)
+    events.SetKeyboardState(SDLK_t, false);
+
+  if (actionMode != 2)
+    powerShotQueued = false;
+
   if (actionMode == 0 && !passCallPressed && !IsSuperCancelling() &&
       (!match->IsInSetPiece() || team->GetController()->GetPieceTaker() == player)) {
     // todo: clean this up
@@ -531,6 +566,15 @@ void HumanController::Process() {
         actionMode = 2;
         actionButton = e_ButtonFunction_Shot;
       }
+
+      if (powerShotPressed && allowShot && CastPlayer()->HasPossession() && match->IsInPlay() &&
+          !match->IsInSetPiece()) {
+        powerShotQueued = true;
+        actionMode = 2;
+        actionButton = e_ButtonFunction_Shot;
+        gauge_ms = 1000;
+        actionBufferTime_ms = 0;
+      }
     }
   }
 
@@ -587,6 +631,7 @@ int HumanController::GetReactionTime_ms() {
 }
 
 void HumanController::Reset() {
+  powerShotQueued = false;
   actionMode = 0;
   gauge_ms = 0;
   dispatchedGauge_ms = -1;

@@ -79,6 +79,14 @@ IController* PlayerBase::GetController() {
 }
 
 void PlayerBase::RequestCommand(PlayerCommandQueue& commandQueue) {
+  if (match->IsPreparingSecretShot(this)) {
+    PlayerCommand shot;
+    shot.desiredFunctionType = e_FunctionType_Shot;
+    shot.touchInfo.inputDirection = GetDirectionVec();
+    shot.touchInfo.desiredDirection = GetDirectionVec();
+    shot.touchInfo.desiredPower = 0.92f;
+    commandQueue.push_back(shot);
+  }
   if (externalController)
     externalController->RequestCommand(commandQueue);
   else

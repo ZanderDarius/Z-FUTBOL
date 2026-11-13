@@ -3,6 +3,27 @@
 #include "../main.hpp"
 #include "managers/usereventmanager.hpp"
 
+namespace {
+
+constexpr int kKeyboardPresetVersion = 3;
+
+const SDL_Scancode legacyDefaultScancodes[e_ButtonFunction_Size] = {
+    SDL_SCANCODE_UP, SDL_SCANCODE_RIGHT, SDL_SCANCODE_DOWN, SDL_SCANCODE_LEFT, SDL_SCANCODE_W,
+    SDL_SCANCODE_A,  SDL_SCANCODE_S,     SDL_SCANCODE_D,    SDL_SCANCODE_W,    SDL_SCANCODE_A,
+    SDL_SCANCODE_S,  SDL_SCANCODE_D,     SDL_SCANCODE_Q,    SDL_SCANCODE_Z,    SDL_SCANCODE_E,
+    SDL_SCANCODE_C,  SDL_SCANCODE_F1,    SDL_SCANCODE_RETURN};
+
+const SDL_Keycode legacyDefaultKeycodes[e_ButtonFunction_Size] = {
+    SDLK_UP, SDLK_RIGHT, SDLK_DOWN, SDLK_LEFT, SDLK_w, SDLK_a, SDLK_s, SDLK_d, SDLK_w,
+    SDLK_a,  SDLK_s,     SDLK_d,    SDLK_q,    SDLK_z, SDLK_e, SDLK_c, SDLK_F1, SDLK_RETURN};
+
+bool IsLegacyDefaultMapping(int index, SDL_Keycode key) {
+  return key == legacyDefaultKeycodes[index] ||
+         SDL_GetScancodeFromKey(key) == legacyDefaultScancodes[index];
+}
+
+}  // namespace
+
 HIDKeyboard::HIDKeyboard() {
   deviceType = e_HIDeviceType_Keyboard;
   identifier = "keyboard";
@@ -22,6 +43,8 @@ SDL_Keycode HIDKeyboard::DefaultKey(int buttonFunction) {
 void HIDKeyboard::LoadConfig() {
   keymapGeneration = UserEventManager::GetInstance().GetKeymapGeneration();
   std::unique_lock<std::mutex> blah(mutex);
+  const bool migrateLegacyDefaults =
+      GetConfiguration()->GetInt("input_keyboard_preset_version", 0) < kKeyboardPresetVersion;
   for (int i = 0; i < e_ButtonFunction_Size; i++) {
     functionButtonState[i] = false;
     previousFunctionButtonState[i] = false;
@@ -39,11 +62,22 @@ void HIDKeyboard::LoadConfig() {
     if (key == SDLK_UNKNOWN && GetConfiguration()->Exists(keycodeKey.c_str()))
       key = (SDL_Keycode)GetConfiguration()->GetInt(keycodeKey.c_str(), SDLK_UNKNOWN);
     functionMapping[i] = key != SDLK_UNKNOWN ? key : DefaultKey(i);
+
+    // Upgrade profiles saved with the previous arrow-key/action-cluster preset
+    // while preserving any keys the player had actually changed.
+    if (migrateLegacyDefaults && key != SDLK_UNKNOWN && IsLegacyDefaultMapping(i, key)) {
+      functionMapping[i] = DefaultKey(i);
+      GetConfiguration()->SetInt(scancodeKey.c_str(), SDL_GetScancodeFromKey(functionMapping[i]));
+      GetConfiguration()->SetInt(keycodeKey.c_str(), functionMapping[i]);
+    }
   }
+  if (migrateLegacyDefaults)
+    GetConfiguration()->SetInt("input_keyboard_preset_version", kKeyboardPresetVersion);
 }
 
 void HIDKeyboard::SaveConfig() {
   std::unique_lock<std::mutex> blah(mutex);
+  GetConfiguration()->SetInt("input_keyboard_preset_version", kKeyboardPresetVersion);
   for (int i = 0; i < e_ButtonFunction_Size; i++) {
     GetConfiguration()->SetInt(("input_keyboard_sc_" + int_to_str(i)).c_str(),
                                SDL_GetScancodeFromKey(functionMapping[i]));
@@ -62,7 +96,14 @@ void HIDKeyboard::Process() {
   std::unique_lock<std::mutex> blah(mutex);
   for (int i = 0; i < e_ButtonFunction_Size; i++) {
     previousFunctionButtonState[i] = functionButtonState[i];
-    functionButtonState[i] = UserEventManager::GetInstance().GetKeyboardState(functionMapping[i]);
+    functionButtonState[i] = functionMapping[i] != SDLK_UNKNOWN && UserEventManager::GetInstance().GetKeyboardState(functionMapping[i]);
+
+    if ((i == e_ButtonFunction_ShortPass || i == e_ButtonFunction_Pressure) &&
+        UserEventManager::GetInstance().GetMouseButtonState(SDL_BUTTON_RIGHT))
+      functionButtonState[i] = true;
+    if ((i == e_ButtonFunction_Shot || i == e_ButtonFunction_TeamPressure) &&
+        UserEventManager::GetInstance().GetMouseButtonState(SDL_BUTTON_LEFT))
+      functionButtonState[i] = true;
   }
 }
 

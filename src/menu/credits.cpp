@@ -1,4 +1,5 @@
 #include "credits.hpp"
+#include "gametitle.hpp"
 
 #include "../main.hpp"
 #include "base/utils.hpp"
@@ -59,7 +60,7 @@ CreditsPage::~CreditsPage() {}
 
 void CreditsPage::InitCreditsContents() {
   AddCredit("PROPERLY DECENT presents");
-  AddHeader("LEAGUE SOCCER");
+  AddHeader(kGameTitle);
   AddSubHeader("Gameplay Football engine");
   AddWhitespace();
   AddWhitespace();

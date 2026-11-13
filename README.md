@@ -1,12 +1,12 @@
-# League-Soccer (Gameplay Football)
+# Z FUTBOL
 
-[![CI](https://github.com/awest813/League-Soccer/actions/workflows/ci.yml/badge.svg)](https://github.com/awest813/League-Soccer/actions/workflows/ci.yml)
+[![CI](https://github.com/ZanderDarius/Z-FUTBOL/actions/workflows/ci.yml/badge.svg)](https://github.com/ZanderDarius/Z-FUTBOL/actions/workflows/ci.yml)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue)](CMakeLists.txt)
 [![CMake](https://img.shields.io/badge/CMake-3.14%2B-blue)](CMakeLists.txt)
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-black)](README.md)
 
-**League-Soccer** is a fully featured, open-source football (soccer) game —
+**Z FUTBOL** is a fully featured, open-source football (soccer) game based on League-Soccer —
 a 3D match engine, tactical AI, and deep management/career modes — rebuilt
 from the archaeology of the discontinued
 [GameplayFootball](https://github.com/BazkieBumpercar/GameplayFootball) project.
@@ -140,8 +140,8 @@ including Void Linux glibc and musl containers.
 ## Getting the Code
 
 ```bash
-git clone https://github.com/awest813/League-Soccer.git
-cd League-Soccer
+git clone https://github.com/ZanderDarius/Z-FUTBOL.git
+cd Z-FUTBOL
 ```
 
 ---
@@ -295,30 +295,40 @@ Most action buttons do one thing with the ball and another without it.
 
 | Action (with the ball / without it) | Keyboard | Gamepad |
 |--------------------------------------|----------|---------|
-| Move player | Arrow keys | Left stick |
-| Short pass / Press the ball carrier | **S** | **A** |
-| High pass or cross / Sliding tackle | **A** | **B** |
-| Long through pass / Keeper rushes out | **W** | **Y** |
-| Shoot / Team pressure | **D** | **X** |
+| Move player | **W A S D** | Left stick |
+| Short pass / Press the ball carrier | **Right mouse** | **A** |
+| High pass or cross / Sliding tackle | **F** | **B** |
+| Long through pass / Keeper rushes out | **R** | **Y** |
+| Shoot / Team pressure | **Left mouse** | **X** |
+| Manual goalkeeper on/off (move cursor onto incoming shots) | **G** | |
+| Rising power shot (tap with the ball in open play) | **T** | |
 | Switch player | **Q** | **LB** |
-| Sprint (tap twice to knock the ball on) | **E** | **RB** |
+| Sprint (tap twice to knock the ball on) | **Left Shift** | **RB** |
 | Slow, close-control dribble | **C** | **RT** |
 | Pause | **Escape** | **Start** |
 | Match statistics overlay | **Tab** | — |
 
-Hold an action button to charge power; the gauge above the player shows it.
+Hold an action button to charge power; the gauge above the player fills green,
+yellow, then red. Hold **left mouse** until the gauge turns red for a powerful
+shot, then release it to shoot.
 
 | Combination | Keyboard | Gamepad |
 |-------------|----------|---------|
-| One-two (pass, then run for the return) | **Q** + **S** | **LB** + **A** |
-| Chip shot | **Q** + **D** | **LB** + **X** |
-| Finesse (placed) shot | **C** + **D** | **RT** + **X** |
-| Fake shot | **D**, then **S** before the kick | **X**, then **A** |
-| Super Cancel (manual movement, no auto-touches) | **E** + **C** | **RB** + **RT** |
+| One-two (pass, then run for the return) | **Q** + **Right mouse** | **LB** + **A** |
+| Chip shot | **Q** + **Left mouse** | **LB** + **X** |
+| Finesse (placed) shot | **C** + **Left mouse** | **RT** + **X** |
+| Fake shot | **Left mouse**, then **Right mouse** before the kick | **X**, then **A** |
+| Super Cancel (manual movement, no auto-touches) | **Left Shift** + **C** | **RB** + **RT** |
 
 Menus use the arrow keys / left stick or D-pad, **Enter** / **A** to confirm
 and **Escape** / **B** to go back. **F12** quits the game. Escape, Tab and F12
 cannot be assigned to match actions.
+
+Open **Settings → Test scenarios** to jump into a playable drill. Highlight a
+scenario to see its controls. **F9** resets the same setup without a loading
+screen, and **Esc** takes you back to the list. Try the same incoming shot
+with either keeper mode, time **B** as an airborne cross reaches your player,
+or take corners, free kicks and penalties. Practice results stay out of match history.
 
 **Gamepad options** (Settings > Controllers > Gamepads > your pad):
 
@@ -331,9 +341,9 @@ cannot be assigned to match actions.
 - Settings are saved per gamepad model, so a pad keeps them whichever USB port
   or connection order it uses.
 
-**Keyboard bindings follow physical key positions**, so other layouts get the
-same hand position: on AZERTY the default pass/shoot keys are **Z Q S D**,
-switch is **A** and sprint is **E**.
+**WASD movement follows physical key positions**, so other layouts get the same
+hand position (AZERTY displays **Z Q S D**). Through pass and high pass use
+**R** and **F** because W/A are movement keys. During live defense, automatic switching selects the nearest outfield teammate to the ball.
 
 **If a gamepad that is playing disconnects during a match**, the game pauses
 with **Controller Select** highlighted. Reconnect the pad and assign it to
@@ -497,6 +507,7 @@ send a pull request.
 
 ## Acknowledgements
 
+- **[awest813 and the League-Soccer contributors](https://github.com/awest813/League-Soccer)** developed the game that Z FUTBOL is based on. See [NOTICE](NOTICE) for project credits.
 - **[Bastiaan Konings Schuiling](http://www.properlydecent.com/)** — original
   author of GameplayFootball.
 - **[Google Brain / Google Research Football](https://github.com/google-research/football)** —

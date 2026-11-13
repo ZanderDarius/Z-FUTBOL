@@ -161,7 +161,7 @@ bool Gui2IconSelector::SetSelectedEntryIndex(int entryIndex) {
 void Gui2IconSelector::ProcessWindowingEvent(WindowingEvent* event) {
   event->Ignore();
 
-  if (visibleSelectedEntry == (float)selectedEntry) {
+  if (!entries.empty()) {
     Vector3 direction = event->GetDirection();
     int xoffset = 0;
     if (direction.coords[0] < -0.75)
@@ -182,8 +182,8 @@ void Gui2IconSelector::ProcessWindowingEvent(WindowingEvent* event) {
   }
 
   if (event->IsActivate()) {
-    sig_OnClick();
     event->Accept();
+    sig_OnClick();
   }
 }
 

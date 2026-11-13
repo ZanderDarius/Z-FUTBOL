@@ -1,6 +1,8 @@
 #include "gamepage.hpp"
+#include "gametitle.hpp"
 
 #include "../../onthepitch/match.hpp"
+#include "../../onthepitch/practicescenario.hpp"
 #include "../pagefactory.hpp"
 #include "gameover.hpp"
 #include "main.hpp"
@@ -31,7 +33,7 @@ bool MenuSmokeControllerDisconnectEnabled() {
 GamePage::GamePage(Gui2WindowManager* windowManager, const Gui2PageData& pageData)
     : Gui2Page(windowManager, pageData), match(0), matchReadyTime_ms(0), autoQuitTriggered(false) {
   Gui2Caption* betaSign =
-      new Gui2Caption(windowManager, "caption_betasign", 0, 0, 0, 2, "League-Soccer v0.4.0");
+      new Gui2Caption(windowManager, "caption_betasign", 0, 0, 0, 2, std::string(kGameTitle) + " v0.4.0");
   betaSign->SetColor(Vector3(180, 180, 180));
   betaSign->SetTransparency(0.65f);
   this->AddView(betaSign);
@@ -39,6 +41,12 @@ GamePage::GamePage(Gui2WindowManager* windowManager, const Gui2PageData& pageDat
   // Top-right corner: the bottom-right sat under the second player's HUD panel.
   betaSign->SetPosition(98.5f - w, 0.8f);
   betaSign->Show();
+  if (const auto* scenario = practice::Find(practice::active.load())) {
+    auto* guide = new Gui2Caption(windowManager, "practice_controls", 2, 9, 90, 2.6f,
+        std::string(scenario->name) + "   |   F9: Retry    Esc: Test scenarios");
+    AddView(guide);
+    guide->Show();
+  }
 
   this->Show();
 
@@ -200,6 +208,12 @@ void GamePage::ProcessKeyboardEvent(KeyboardEvent* event) {
   }
 
   if (event->GetKeyOnce(SDLK_ESCAPE)) {
+    if (practice::active != practice::Drill::None) {
+      Exit();
+      GetMenuTask()->SetMenuAction(e_MenuAction_Menu);
+      delete this;
+      return;
+    }
     // check which team the keyboard belongs to
     int controllerID = 0;
     const std::vector<IHIDevice*>& controllers = GetControllers();

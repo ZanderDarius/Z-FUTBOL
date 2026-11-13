@@ -10,6 +10,7 @@
 // limitations under the License.
 
 #include "opengl_renderer3d.hpp"
+#include "gametitle.hpp"
 
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
@@ -179,7 +180,9 @@ void OpenGLRenderer3D::RenderOverlay2D(const std::vector<Overlay2DQueueEntry>& o
 
   UseShader("overlay");
 
-  // VK: TODO: check window size instead?
+  int drawableWidth, drawableHeight;
+  GetDrawableSize(drawableWidth, drawableHeight);
+  SetViewport(0, 0, drawableWidth, drawableHeight);
   Matrix4 orthoMatrix = CreateOrthoMatrix(0.0f, static_cast<real>(context_width),
                                           static_cast<real>(context_height), 0.0f, 0.1f, 10.0f);
   SetMatrix("projection", orthoMatrix);
@@ -473,17 +476,16 @@ bool OpenGLRenderer3D::CreateContext(int width, int height, int bpp, bool fullsc
 
   // #endif
 
-  window = SDL_CreateWindow("League Soccer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width,
+  window = SDL_CreateWindow(kGameTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width,
                             height,
                             SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_SHOWN |
-                                (fullscreen ? SDL_WINDOW_FULLSCREEN : 0));
+                                (fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_RESIZABLE));
   if (!window) {
     Log(e_FatalError, "OpenGLRenderer3D", "CreateContext",
         "Failed to create SDL window: " + std::string(SDL_GetError()));
     return false;
   }
   SDL_RaiseWindow(window);
-  SDL_SetWindowTitle(window, "League Soccer");
 
   context = SDL_GL_CreateContext(window);
   if (!context) {
@@ -2110,6 +2112,10 @@ void OpenGLRenderer3D::PushAttribute(int attr) {
 
 void OpenGLRenderer3D::PopAttribute() {
   mapping.glPopAttrib();
+}
+
+void OpenGLRenderer3D::GetDrawableSize(int& width, int& height) {
+  SDL_GL_GetDrawableSize(window, &width, &height);
 }
 
 void OpenGLRenderer3D::SetViewport(int x, int y, int width, int height) {

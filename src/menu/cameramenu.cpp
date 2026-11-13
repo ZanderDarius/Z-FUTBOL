@@ -46,7 +46,7 @@ CameraPage::CameraPage(Gui2WindowManager* windowManager, const Gui2PageData& pag
   this->sig_OnClose.connect([this](...) { OnClose(); });
 
   Gui2Button* buttonPresetStandard = new Gui2Button(windowManager, "cam_preset_standard", 0, 0, 30,
-                                                    3, TR("camera_preset_standard"));
+                                                    3, TR("settings_factory_default"));
   Gui2Button* buttonPresetWidescreen = new Gui2Button(windowManager, "cam_preset_widescreen", 0, 0,
                                                       30, 3, TR("camera_preset_widescreen"));
   Gui2Button* buttonPresetUltrawide = new Gui2Button(windowManager, "cam_preset_ultrawide", 0, 0,
@@ -55,7 +55,7 @@ CameraPage::CameraPage(Gui2WindowManager* windowManager, const Gui2PageData& pag
                                           Localization::GetInstance().Translate("action_back"));
   backButton->sig_OnClick.connect([this](...) { GoBack(); });
 
-  buttonPresetStandard->sig_OnClick.connect([this](...) { ApplyPreset(0.5f, 0.3f, 0.4f, 0.0f); });
+  buttonPresetStandard->sig_OnClick.connect([this](...) { ApplyPreset(_default_CameraZoom, _default_CameraHeight, _default_CameraFOV, _default_CameraAngleFactor); });
   buttonPresetWidescreen->sig_OnClick.connect([this](...) { ApplyPreset(0.6f, 0.2f, 0.5f, 0.1f); });
   buttonPresetUltrawide->sig_OnClick.connect([this](...) { ApplyPreset(0.7f, 0.15f, 0.6f, 0.2f); });
 
@@ -74,8 +74,12 @@ CameraPage::CameraPage(Gui2WindowManager* windowManager, const Gui2PageData& pag
 
   sliderZoom->SetFocus();
 
-  float zoom, height, fov, angleFactor;
-  GetGameTask()->GetMatch()->GetCameraParams(zoom, height, fov, angleFactor);
+  float zoom = GetConfiguration()->GetReal("camera_zoom", _default_CameraZoom);
+  float height = GetConfiguration()->GetReal("camera_height", _default_CameraHeight);
+  float fov = GetConfiguration()->GetReal("camera_fov", _default_CameraFOV);
+  float angleFactor = GetConfiguration()->GetReal("camera_anglefactor", _default_CameraAngleFactor);
+  if (GetGameTask()->GetMatch())
+    GetGameTask()->GetMatch()->GetCameraParams(zoom, height, fov, angleFactor);
 
   sliderZoom->SetValue(zoom);
   sliderHeight->SetValue(height);
@@ -106,6 +110,7 @@ void CameraPage::UpdateCamera() {
   GetConfiguration()->Set("camera_height", sliderHeight->GetValue());
   GetConfiguration()->Set("camera_fov", sliderFOV->GetValue());
   GetConfiguration()->Set("camera_anglefactor", sliderAngleFactor->GetValue());
-  GetGameTask()->GetMatch()->SetCameraParams(sliderZoom->GetValue(), sliderHeight->GetValue(),
+  if (GetGameTask()->GetMatch())
+    GetGameTask()->GetMatch()->SetCameraParams(sliderZoom->GetValue(), sliderHeight->GetValue(),
                                              sliderFOV->GetValue(), sliderAngleFactor->GetValue());
 }

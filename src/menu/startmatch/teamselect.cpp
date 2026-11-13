@@ -187,7 +187,7 @@ TeamSelectPage::TeamSelectPage(Gui2WindowManager* windowManager, const Gui2PageD
 
   competitionSelect1->SetFocus();
 
-  SetActiveController(-1, true);
+  SetActiveController(-1);
 
   this->Show();
 }
@@ -254,7 +254,7 @@ void TeamSelectPage::FocusCompetitionSelect2() {
 
   competitionSelect2->SetFocus();
 
-  SetActiveController(1, true);
+  SetActiveController(1);
 }
 
 void TeamSelectPage::FocusTeamSelect2() {
@@ -335,7 +335,7 @@ void TeamSelectPage::StepBack() {
     p2->Hide();
     grid2->Hide();
     frame2->Hide();
-    SetActiveController(-1, true);
+    SetActiveController(-1);
   } else if (focus == teamSelect2) {
     windowManager->SetFocus(competitionSelect2);
   } else if (focus == buttonStart2) {
@@ -347,25 +347,8 @@ void TeamSelectPage::StepBack() {
 
 void TeamSelectPage::ProcessWindowingEvent(WindowingEvent* event) {
   if (event->IsEscape()) {
-    if (windowManager->GetFocus() == competitionSelect1) {
-      Gui2Page::ProcessWindowingEvent(event);
-    } else if (windowManager->GetFocus() == teamSelect1) {
-      windowManager->SetFocus(competitionSelect1);
-    } else if (windowManager->GetFocus() == buttonStart1) {
-      windowManager->SetFocus(teamSelect1);
-    } else if (windowManager->GetFocus() == competitionSelect2) {
-      windowManager->SetFocus(buttonStart1);
-
-      p2->Hide();
-      grid2->Hide();
-      frame2->Hide();
-
-      SetActiveController(-1, true);
-
-    } else if (windowManager->GetFocus() == teamSelect2) {
-      windowManager->SetFocus(competitionSelect2);
-    } else if (windowManager->GetFocus() == buttonStart2) {
-      windowManager->SetFocus(teamSelect2);
-    }
+    StepBack();
+    return;
   }
+  Gui2Page::ProcessWindowingEvent(event);
 }

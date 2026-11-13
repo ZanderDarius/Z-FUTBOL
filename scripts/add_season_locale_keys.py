@@ -52,7 +52,7 @@ league_savegame_name=Spielstand-Name
 league_select_team=Verein wählen
 league_initial_difficulty=Anfangsschwierigkeit
 league_newdb_help1=Die Grunddatenbank wird in ein neues Verzeichnis kopiert, das als 'Spielstand' deiner Liga dient. Deine Liga basiert auf dieser Datenbank; spätere Änderungen an der Grunddatenbank beeinflussen deinen Spielstand nicht (und umgekehrt).
-league_newdb_help2=Grunddatenbanken liegen im Unterverzeichnis 'databases' deiner League-Soccer-Installation. Gespeicherte Ligen und Pokale liegen im Verzeichnis 'saves'.
+league_newdb_help2=Grunddatenbanken liegen im Unterverzeichnis 'databases' deiner Z FUTBOL-Installation. Gespeicherte Ligen und Pokale liegen im Verzeichnis 'saves'.
 league_select_source_db=Quell-Datenbank wählen
 """,
 "es": """
@@ -106,7 +106,7 @@ league_savegame_name=Nombre del guardado
 league_select_team=Selecciona tu equipo
 league_initial_difficulty=Dificultad inicial
 league_newdb_help1=La base de datos base se copiará a un nuevo directorio que servirá como 'partida guardada' de tu liga. Tu liga se basa en esta base de datos; los cambios posteriores no afectarán a tu guardado (ni al revés).
-league_newdb_help2=Las bases de datos se guardan en el subdirectorio 'databases' de tu instalación de League Soccer. Las ligas y copas guardadas están en el directorio 'saves'.
+league_newdb_help2=Las bases de datos se guardan en el subdirectorio 'databases' de tu instalación de Z FUTBOL. Las ligas y copas guardadas están en el directorio 'saves'.
 league_select_source_db=Selecciona base de datos origen
 """,
 "fr": """
@@ -160,7 +160,7 @@ league_savegame_name=Nom de la sauvegarde
 league_select_team=Choisissez votre équipe
 league_initial_difficulty=Difficulté initiale
 league_newdb_help1=La base de données source sera copiée dans un nouveau répertoire servant de 'sauvegarde' à votre ligue. Votre ligue est basée sur cette base ; toute modification ultérieure de la base source n'affectera pas votre sauvegarde (ni l'inverse).
-league_newdb_help2=Les bases de données sources sont stockées dans le sous-répertoire 'databases' de votre installation League Soccer. Les ligues et coupes sauvegardées sont dans le répertoire 'saves'.
+league_newdb_help2=Les bases de données sources sont stockées dans le sous-répertoire 'databases' de votre installation Z FUTBOL. Les ligues et coupes sauvegardées sont dans le répertoire 'saves'.
 league_select_source_db=Choisir la base source
 """,
 "pt": """
@@ -214,7 +214,7 @@ league_savegame_name=Nome do savegame
 league_select_team=Selecione o seu clube
 league_initial_difficulty=Dificuldade inicial
 league_newdb_help1=A base de dados base será copiada para um novo diretório que servirá de 'save' para a sua liga. A sua liga baseia-se nesta base de dados; alterações posteriores à base original não afetam o seu save (e vice-versa).
-league_newdb_help2=As bases de dados estão no subdiretório 'databases' da sua instalação do League Soccer. Ligas e taças guardadas ficam no diretório 'saves'.
+league_newdb_help2=As bases de dados estão no subdiretório 'databases' da sua instalação do Z FUTBOL. Ligas e taças guardadas ficam no diretório 'saves'.
 league_select_source_db=Selecionar base de dados de origem
 """,
 }
